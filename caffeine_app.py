@@ -183,6 +183,9 @@ if st.session_state.doses:
         label_visibility="collapsed"
     )
 
+    day, hour, minute = hours_to_day_hour_min(st.session_state.selected_total_hr)
+    st.write(f"Selected Time: Day {day} {hour:02d}:{minute:02d}")
+
     if nudg_cols[4].button("+15m"): st.session_state.selected_total_hr = min(max_total_hr, st.session_state.selected_total_hr+0.25)
     if nudg_cols[5].button("+1h"): st.session_state.selected_total_hr = min(max_total_hr, st.session_state.selected_total_hr+1)
     if nudg_cols[6].button("+10h"): st.session_state.selected_total_hr = min(max_total_hr, st.session_state.selected_total_hr+10)
@@ -198,6 +201,19 @@ if st.session_state.doses:
         remaining = cumulative_caffeine(st.session_state.doses, np.array([st.session_state.selected_total_hr]), hl)[0]
         st.write(f"{label}: **{remaining:.0f} mg**")
 
+    # --- Estimated Caffeine Clearance (<10 mg) ---
+    st.subheader("Estimated Time All Caffeine is Gone (<10 mg)")
+    hours_long = np.linspace(0, 1000, 10000)
+    for label, hl in half_lives.items():
+        curve = cumulative_caffeine(st.session_state.doses, hours_long, hl)
+        below_10 = np.where(curve < 10)[0]
+        if len(below_10) > 0:
+            cleared_hr = hours_long[below_10[0]]
+            c_day, c_hour, c_min = hours_to_day_hour_min(cleared_hr)
+            st.write(f"{label}: Day {c_day} {c_hour:02d}:{c_min:02d}")
+        else:
+            st.write(f"{label}: Not cleared within 1000 hours")
+
     # --- Dose Table ---
     with st.expander("View All Doses"):
         for idx, (day, dose_time, dose_mg) in enumerate(st.session_state.doses):
@@ -210,6 +226,6 @@ if st.session_state.doses:
             cols[3].write(f"{hour:02d}:{minute:02d}")
             if cols[4].button("Delete", key=f"delete_{idx}"):
                 st.session_state.doses.pop(idx)
-                st.rerun()
+                st.experimental_rerun()
 else:
     st.info("Add one or more doses to see the chart and table.")
